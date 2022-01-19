@@ -1,5 +1,8 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class CarShop {
 
@@ -7,6 +10,8 @@ public class CarShop {
     private final int BUY_TIME = 500;
     private final int BATCH_CARS = 10;
     private final List<Car> cars = new ArrayList<>();
+    private Lock lock = new ReentrantLock(true);
+    private Condition condition = lock.newCondition();
 
     public void receiveCar() {
         for (int i = 0; i < BATCH_CARS; i++) {
@@ -14,28 +19,33 @@ public class CarShop {
                 Thread.sleep(DELIVERY_TIME);
                 cars.add(new Car());
                 System.out.println(Thread.currentThread().getName() + " выпустил 1 авто");
-                synchronized (this) {
-                    notify();
-                }
+                lock.lock();
+                condition.signal();
             } catch (InterruptedException e) {
                 e.printStackTrace();
+            } finally {
+                lock.unlock();
             }
         }
-
     }
 
-    public synchronized void sellCar() {
+
+    public void sellCar() {
         try {
+            lock.lock();
             System.out.println(Thread.currentThread().getName() + " зашел в автосалон");
             while (cars.isEmpty()) {
                 System.out.println("Машин нет");
-                wait();
+                condition.await();
             }
             Thread.sleep(BUY_TIME);
             System.out.println(Thread.currentThread().getName() + " уехал на новеньком авто");
             cars.remove(0);
         } catch (InterruptedException e) {
             e.printStackTrace();
+        }
+        finally {
+            lock.unlock();
         }
     }
 }
